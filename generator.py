@@ -14,7 +14,7 @@ class Post(object):
     @cached_property
     def html(self):
         with open(self.path, 'r') as fin:
-            content = fin.read().strip()
+            content = fin.read().split('\n\n', 1)[1].strip()
         return markdown.markdown(content)
 
     def _initialize_metadata(self):

@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, render_template
 from werkzeug import cached_property
 import markdown
@@ -15,9 +17,11 @@ class Post(object):
 
 app = Flask(__name__)
 
-@app.route('/blog')
-def post():
-    return render_template('post.html')
+@app.route('/blog/<path:path>')
+def post(path):
+    path = os.path.join('posts', path + '.md')
+    post = Post(path)
+    return render_template('post.html', post=post)
 
 
 if __name__ == '__main__':

@@ -29,6 +29,10 @@ class Post(object):
 
 app = Flask(__name__)
 
+@app.template_filter('date')
+def format_date(value, format='%B %d, %Y'):
+    return value.strftime(format)
+
 @app.route('/blog/<path:path>')
 def post(path):
     path = os.path.join('posts', path + '.md')

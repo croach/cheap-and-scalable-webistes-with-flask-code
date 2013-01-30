@@ -13,7 +13,7 @@
         {% if post.subtitle %}
             <h2>{{ post.subtitle }}</h2>
         {% endif %}
-        <h3 id="date">{{ post.date }}</h3>
+        <h3 id="date">{{ post.date|date }}</h3>
     </div>
 
     <div id="content">

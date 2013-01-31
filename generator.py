@@ -47,8 +47,7 @@ def index():
 
 @app.route('/blog/<path:path>')
 def post(path):
-    path = os.path.join('posts', path + '.md')
-    post = Post(path)
+    post = Post(path + '.md', root='posts', base_url='/blog/')
     return render_template('post.html', post=post)
 
 

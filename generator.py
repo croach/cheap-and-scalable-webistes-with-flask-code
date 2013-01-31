@@ -40,6 +40,11 @@ def format_date(value, format='%B %d, %Y'):
     return value.strftime(format)
 
 # Routes
+@app.route('/')
+def index():
+    posts = [Post('2013/01/29/hello-world.md', root='posts', base_url='/blog/')]
+    return render_template('index.html', posts=posts)
+
 @app.route('/blog/<path:path>')
 def post(path):
     path = os.path.join('posts', path + '.md')

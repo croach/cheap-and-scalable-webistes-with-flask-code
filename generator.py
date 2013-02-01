@@ -1,7 +1,7 @@
 import os
 import urlparse
 
-from flask import Flask, render_template
+from flask import Flask, render_template, abort
 from werkzeug import cached_property
 import markdown
 import yaml
@@ -19,6 +19,23 @@ class Blog(object):
     @property
     def posts(self):
         return self._cache.values()
+
+    def get_post_or_404(self, path):
+        """
+        Returns the Post object at path or raises a NotFound error
+        """
+        # Grab the post from the cache
+        post = self._cache.get(path, None)
+
+        # If the post isn't cached (or DEBUG), create a new Post object
+        if not post:
+            filepath = os.path.join(self.root, path + self.file_ext)
+            if not os.path.isfile(filepath):
+                abort(404)
+            post = Post(filepath, root=self.root, base_url=self.base_url)
+            self._cache[post.urlpath] = post
+
+        return post
 
     def _initialize_cache(self):
         """
@@ -78,7 +95,7 @@ def index():
 
 @app.route('/blog/<path:path>')
 def post(path):
-    post = Post(path + '.md', root='posts', base_url='/blog/')
+    post = blog.get_post_or_404(path)
     return render_template('post.html', post=post)
 
 

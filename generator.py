@@ -32,7 +32,7 @@ class Blog(object):
             filepath = os.path.join(self.root_dir, path + self.file_ext)
             if not os.path.isfile(filepath):
                 abort(404)
-            post = Post(filepath, root=self.root_dir, base_url=self.base_url)
+            post = Post(filepath, root_dir=self.root_dir, base_url=self.base_url)
             self._cache[post.urlpath] = post
 
         return post
@@ -46,14 +46,14 @@ class Blog(object):
                 filename, ext = os.path.splitext(filepath)
                 if ext == self.file_ext:
                     path = os.path.join(root, filepath).replace(self.root_dir, '')
-                    post = Post(path, root=self.root_dir, base_url=self.base_url)
+                    post = Post(path, root_dir=self.root_dir, base_url=self.base_url)
                     self._cache[post.urlpath] = post
 
 
 class Post(object):
-    def __init__(self, path, root='', base_url=None):
+    def __init__(self, path, root_dir='', base_url=None):
         self.urlpath = os.path.splitext(path.strip('/'))[0]
-        self.filepath = os.path.join(root, path.strip('/'))
+        self.filepath = os.path.join(root_dir, path.strip('/'))
         self.base_url = base_url
         self._initialize_metadata()
 

@@ -6,6 +6,33 @@ from werkzeug import cached_property
 import markdown
 import yaml
 
+
+class Blog(object):
+    def __init__(self, app, root=None, base_url=None, file_ext='.md'):
+        self.root = root or app.root_path
+        self.base_url = base_url
+        self.file_ext = file_ext
+        self._app = app
+        self._cache = {}
+        self._initialize_cache()
+
+    @property
+    def posts(self):
+        return self._cache.values()
+
+    def _initialize_cache(self):
+        """
+        Walks the root directory and adds all posts to the cache dict
+        """
+        for (root, dirpaths, filepaths) in os.walk(self.root):
+            for filepath in filepaths:
+                filename, ext = os.path.splitext(filepath)
+                if ext == self.file_ext:
+                    path = os.path.join(root, filepath).replace(self.root, '')
+                    post = Post(path, root=self.root, base_url=self.base_url)
+                    self._cache[post.urlpath] = post
+
+
 class Post(object):
     def __init__(self, path, root='', base_url=None):
         self.urlpath = os.path.splitext(path.strip('/'))[0]
@@ -37,6 +64,7 @@ class Post(object):
 
 
 app = Flask(__name__)
+blog = Blog(app, root='posts', base_url='/blog/')
 
 # Custom Jinja Filter
 @app.template_filter('date')
@@ -46,8 +74,7 @@ def format_date(value, format='%B %d, %Y'):
 # Routes
 @app.route('/')
 def index():
-    posts = [Post('2013/01/29/hello-world.md', root='posts', base_url='/blog/')]
-    return render_template('index.html', posts=posts)
+    return render_template('index.html', posts=blog.posts)
 
 @app.route('/blog/<path:path>')
 def post(path):

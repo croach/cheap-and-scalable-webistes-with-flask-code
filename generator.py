@@ -8,8 +8,8 @@ import yaml
 
 
 class Blog(object):
-    def __init__(self, app, root=None, base_url=None, file_ext='.md'):
-        self.root = root or app.root_path
+    def __init__(self, app, root_dir=None, base_url=None, file_ext='.md'):
+        self.root_dir = root_dir or app.root_path
         self.base_url = base_url
         self.file_ext = file_ext
         self._app = app
@@ -29,10 +29,10 @@ class Blog(object):
 
         # If the post isn't cached (or DEBUG), create a new Post object
         if not post:
-            filepath = os.path.join(self.root, path + self.file_ext)
+            filepath = os.path.join(self.root_dir, path + self.file_ext)
             if not os.path.isfile(filepath):
                 abort(404)
-            post = Post(filepath, root=self.root, base_url=self.base_url)
+            post = Post(filepath, root=self.root_dir, base_url=self.base_url)
             self._cache[post.urlpath] = post
 
         return post
@@ -41,12 +41,12 @@ class Blog(object):
         """
         Walks the root directory and adds all posts to the cache dict
         """
-        for (root, dirpaths, filepaths) in os.walk(self.root):
+        for (root, dirpaths, filepaths) in os.walk(self.root_dir):
             for filepath in filepaths:
                 filename, ext = os.path.splitext(filepath)
                 if ext == self.file_ext:
-                    path = os.path.join(root, filepath).replace(self.root, '')
-                    post = Post(path, root=self.root, base_url=self.base_url)
+                    path = os.path.join(root, filepath).replace(self.root_dir, '')
+                    post = Post(path, root=self.root_dir, base_url=self.base_url)
                     self._cache[post.urlpath] = post
 
 
@@ -81,7 +81,7 @@ class Post(object):
 
 
 app = Flask(__name__)
-blog = Blog(app, root='posts', base_url='/blog/')
+blog = Blog(app, root_dir='posts', base_url='/blog/')
 
 # Custom Jinja Filter
 @app.template_filter('date')

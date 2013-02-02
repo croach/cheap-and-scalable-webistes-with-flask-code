@@ -1,12 +1,17 @@
 <html>
 <head>
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" type="text/css" media="screen" charset="utf-8"/>
+
     {% block head %}
         <title>My Awesome Blog</title>
     {% endblock head %}
 </head>
 <body>
 
-{% block content %}{% endblock content %}
+<div id="container">
+    {% block content %}{% endblock content %}
+</div>
 
 </body>
 </html>

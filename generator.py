@@ -1,10 +1,46 @@
 import os
 import urlparse
+import collections
 
 from flask import Flask, render_template, abort
 from werkzeug import cached_property
 import markdown
 import yaml
+
+
+class SortedDict(collections.MutableMapping):
+    def __init__(self, items=[], key=None, reverse=False):
+        self._items = {}
+        self._keys = []
+        if key:
+            self._key_fn = lambda k: key(self._items[k])
+        else:
+            self._key_fn = lambda k: self._items[k]
+        self._reverse = reverse
+
+        self.update(items)
+
+    def __getitem__(self, key):
+        return self._items[key]
+
+    def __setitem__(self, key, value):
+        self._items[key] = value
+        self._keys.append(key)
+        self._keys.sort(key=self._key_fn, reverse=self._reverse)
+
+    def __delitem__(self, key):
+        self._items.pop(key)
+        self._keys.remove(key)
+
+    def __len__(self):
+        return len(self._keys)
+
+    def __iter__(self):
+        for key in self._keys:
+            yield key
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__, self._items)
 
 
 class Blog(object):
@@ -13,7 +49,7 @@ class Blog(object):
         self.base_url = base_url
         self.file_ext = file_ext
         self._app = app
-        self._cache = {}
+        self._cache = SortedDict(key=lambda p: p.date, reverse=True)
         self._initialize_cache()
 
     @property
@@ -83,15 +119,18 @@ class Post(object):
 app = Flask(__name__)
 blog = Blog(app, root_dir='posts', base_url='/blog/')
 
+
 # Custom Jinja Filter
 @app.template_filter('date')
 def format_date(value, format='%B %d, %Y'):
     return value.strftime(format)
 
+
 # Routes
 @app.route('/')
 def index():
     return render_template('index.html', posts=blog.posts)
+
 
 @app.route('/blog/<path:path>')
 def post(path):

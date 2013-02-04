@@ -1,9 +1,13 @@
 import os
+import sys
 import urlparse
 import collections
+import datetime
 
 from flask import Flask, render_template, url_for, abort
+from flask_frozen import Freezer
 from werkzeug import cached_property
+from werkzeug.contrib.atom import AtomFeed
 import markdown
 import yaml
 
@@ -110,8 +114,10 @@ class Post(object):
                 content += line
         self.__dict__.update(yaml.load(content))
 
+DOMAIN = 'myawesomeblog.com'
 
 app = Flask(__name__)
+freezer = Freezer(app)
 blog = Blog(app, root_dir='posts')
 
 
@@ -127,11 +133,37 @@ def index():
     return render_template('index.html', posts=blog.posts)
 
 
-@app.route('/blog/<path:path>')
+@app.route('/blog/<path:path>/')
 def post(path):
     post = blog.get_post_or_404(path)
     return render_template('post.html', post=post)
 
+@app.route('/feed.atom')
+def feed():
+    feed = AtomFeed('My Awesome Blog',
+        feed_url='http://%s/%s/' % (DOMAIN, 'feed.atom'),
+        url='http://%s' % DOMAIN,
+        updated=datetime.datetime.now())
+    for post in blog.posts[:10]: # Just show the last 10 posts
+        try:
+            post_title = '%s: %s' % (post.title, post.subtitle)
+        except AttributeError:
+            post_title = post.title
+        post_url = 'http://%s/%s/%s' % (DOMAIN, 'blog', post.url)
+
+        feed.add(
+            title=post_title,
+            content=unicode(post.html),  # this could be a summary for the post
+            content_type='html',
+            author='Christopher Roach',
+            url=post_url,
+            updated=post.date,  # published is optional, updated is not
+            published=post.date)
+    return feed.get_response()
+
 
 if __name__ == '__main__':
-    app.run(port=8000, debug=True)
+    if len(sys.argv) > 1 and sys.argv[1] == 'build':
+        freezer.freeze()
+    else:
+        app.run(port=8000, debug=True)

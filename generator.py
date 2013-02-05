@@ -5,7 +5,7 @@ import collections
 import datetime
 
 from flask import Flask, render_template, url_for, abort
-from flask_frozen import Freezer
+from flask.ext import frozen
 from werkzeug import cached_property
 from werkzeug.contrib.atom import AtomFeed
 import markdown
@@ -117,7 +117,7 @@ class Post(object):
 DOMAIN = 'myawesomeblog.com'
 
 app = Flask(__name__)
-freezer = Freezer(app)
+freezer = frozen.Freezer(app)
 blog = Blog(app, root_dir='posts')
 
 

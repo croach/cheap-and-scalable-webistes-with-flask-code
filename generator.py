@@ -1,9 +1,11 @@
 import os
+import sys
 import urlparse
 import collections
 import datetime
 
-from flask import Flask, render_template, abort
+from flask import Flask, render_template, url_for, abort
+from flask_frozen import Freezer
 from werkzeug import cached_property
 from werkzeug.contrib.atom import AtomFeed
 import markdown
@@ -46,9 +48,8 @@ class SortedDict(collections.MutableMapping):
 
 
 class Blog(object):
-    def __init__(self, app, root_dir=None, base_url=None, file_ext='.md'):
+    def __init__(self, app, root_dir=None, file_ext='.md'):
         self.root_dir = root_dir or app.root_path
-        self.base_url = base_url
         self.file_ext = file_ext
         self._app = app
         self._cache = SortedDict(key=lambda p: p.date, reverse=True)
@@ -70,7 +71,7 @@ class Blog(object):
             filepath = os.path.join(self.root_dir, path + self.file_ext)
             if not os.path.isfile(filepath):
                 abort(404)
-            post = Post(filepath, root_dir=self.root_dir, base_url=self.base_url)
+            post = Post(filepath, root_dir=self.root_dir)
             self._cache[post.urlpath] = post
 
         return post
@@ -84,15 +85,14 @@ class Blog(object):
                 filename, ext = os.path.splitext(filepath)
                 if ext == self.file_ext:
                     path = os.path.join(root, filepath).replace(self.root_dir, '')
-                    post = Post(path, root_dir=self.root_dir, base_url=self.base_url)
+                    post = Post(path, root_dir=self.root_dir)
                     self._cache[post.urlpath] = post
 
 
 class Post(object):
-    def __init__(self, path, root_dir='', base_url=None):
+    def __init__(self, path, root_dir=''):
         self.urlpath = os.path.splitext(path.strip('/'))[0]
         self.filepath = os.path.join(root_dir, path.strip('/'))
-        self.base_url = base_url
         self._initialize_metadata()
 
     @cached_property
@@ -103,10 +103,7 @@ class Post(object):
 
     @cached_property
     def url(self):
-        # If a base URL was given, join the base with the urlpath
-        if self.base_url:
-            return urlparse.urljoin(self.base_url, self.urlpath)
-        return self.urlpath
+        return url_for('post', path=self.urlpath)
 
     def _initialize_metadata(self):
         content = ''
@@ -120,7 +117,8 @@ class Post(object):
 DOMAIN = 'myawesomeblog.com'
 
 app = Flask(__name__)
-blog = Blog(app, root_dir='posts', base_url='/blog/')
+freezer = Freezer(app)
+blog = Blog(app, root_dir='posts')
 
 
 # Custom Jinja Filter
@@ -135,7 +133,7 @@ def index():
     return render_template('index.html', posts=blog.posts)
 
 
-@app.route('/blog/<path:path>')
+@app.route('/blog/<path:path>/')
 def post(path):
     post = blog.get_post_or_404(path)
     return render_template('post.html', post=post)
@@ -165,4 +163,7 @@ def feed():
 
 
 if __name__ == '__main__':
-    app.run(port=8000, debug=True)
+    if len(sys.argv) > 1 and sys.argv[1] == 'build':
+        freezer.freeze()
+    else:
+        app.run(port=8000, debug=True)

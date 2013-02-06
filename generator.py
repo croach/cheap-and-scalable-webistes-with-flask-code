@@ -4,7 +4,7 @@ import urlparse
 import collections
 import datetime
 
-from flask import Flask, render_template, url_for, abort
+from flask import Flask, render_template, url_for, abort, request
 from flask.ext import frozen
 from werkzeug import cached_property
 from werkzeug.contrib.atom import AtomFeed
@@ -48,16 +48,18 @@ class SortedDict(collections.MutableMapping):
 
 
 class Blog(object):
-    def __init__(self, app, root_dir=None, file_ext='.md'):
-        self.root_dir = root_dir or app.root_path
-        self.file_ext = file_ext
+    def __init__(self, app):
         self._app = app
+        self._initialize_app()
         self._cache = SortedDict(key=lambda p: p.date, reverse=True)
         self._initialize_cache()
 
     @property
     def posts(self):
-        return self._cache.values()
+        if self._app.debug:
+            return self._cache.values()
+        else:
+            return [post for post in self._cache.values() if post.published]
 
     def get_post_or_404(self, path):
         """
@@ -68,24 +70,32 @@ class Blog(object):
 
         # If the post isn't cached (or DEBUG), create a new Post object
         if not post:
-            filepath = os.path.join(self.root_dir, path + self.file_ext)
+            filepath = os.path.join(
+                self._app.config['POSTS_ROOT_DIRECTORY'],
+                path + self._app.config['POSTS_FILE_EXTENSION']
+            )
             if not os.path.isfile(filepath):
                 abort(404)
-            post = Post(filepath, root_dir=self.root_dir)
+            post = Post(filepath, root_dir=self._app.config['POSTS_ROOT_DIRECTORY'])
             self._cache[post.urlpath] = post
 
         return post
+
+    def _initialize_app(self):
+        self._app.config.setdefault('POSTS_ROOT_DIRECTORY', 'posts')
+        self._app.config.setdefault('POSTS_FILE_EXTENSION', '.markdown')
 
     def _initialize_cache(self):
         """
         Walks the root directory and adds all posts to the cache dict
         """
-        for (root, dirpaths, filepaths) in os.walk(self.root_dir):
+        root_dir = self._app.config['POSTS_ROOT_DIRECTORY']
+        for (root, dirpaths, filepaths) in os.walk(root_dir):
             for filepath in filepaths:
                 filename, ext = os.path.splitext(filepath)
-                if ext == self.file_ext:
-                    path = os.path.join(root, filepath).replace(self.root_dir, '')
-                    post = Post(path, root_dir=self.root_dir)
+                if ext == self._app.config['POSTS_FILE_EXTENSION']:
+                    path = os.path.join(root, filepath).replace(root_dir, '')
+                    post = Post(path, root_dir=root_dir)
                     self._cache[post.urlpath] = post
 
 
@@ -93,6 +103,7 @@ class Post(object):
     def __init__(self, path, root_dir=''):
         self.urlpath = os.path.splitext(path.strip('/'))[0]
         self.filepath = os.path.join(root_dir, path.strip('/'))
+        self.published = False
         self._initialize_metadata()
 
     @cached_property
@@ -114,11 +125,15 @@ class Post(object):
                 content += line
         self.__dict__.update(yaml.load(content))
 
-DOMAIN = 'myawesomeblog.com'
+# DEBUG = True
+FREEZER_BASE_URL = 'http://myawesomeblog.com'
+POSTS_ROOT_DIRECTORY = 'posts'
+POSTS_FILE_EXTENSION = '.md'
 
 app = Flask(__name__)
+app.config.from_object(__name__)
 freezer = frozen.Freezer(app)
-blog = Blog(app, root_dir='posts')
+blog = Blog(app)
 
 
 # Custom Jinja Filter
@@ -138,18 +153,19 @@ def post(path):
     post = blog.get_post_or_404(path)
     return render_template('post.html', post=post)
 
+
 @app.route('/feed.atom')
 def feed():
     feed = AtomFeed('My Awesome Blog',
-        feed_url='http://%s/%s/' % (DOMAIN, 'feed.atom'),
-        url='http://%s' % DOMAIN,
+        feed_url=request.url,
+        url=request.url_root,
         updated=datetime.datetime.now())
     for post in blog.posts[:10]: # Just show the last 10 posts
         try:
             post_title = '%s: %s' % (post.title, post.subtitle)
         except AttributeError:
             post_title = post.title
-        post_url = 'http://%s/%s/%s' % (DOMAIN, 'blog', post.url)
+        post_url = urlparse.urljoin(request.url_root, post.url)
 
         feed.add(
             title=post_title,

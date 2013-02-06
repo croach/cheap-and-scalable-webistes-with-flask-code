@@ -1,5 +1,6 @@
 title: Hello, World!
 date: 2013-01-29
+published: true
 
 **Hello, World!** from a Markdown file
 

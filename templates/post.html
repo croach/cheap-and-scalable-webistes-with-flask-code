@@ -5,6 +5,7 @@
     <title>{{ post.title }}{% if post.subtitle %}: {{ post.subtitle }}{% endif %}</title>
     {% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/post.css') }}" type="text/css" media="screen" charset="utf-8"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/syntax.css') }}" type="text/css" media="screen" charset="utf-8"/>
 {% endblock head %}
 
 {% block content %}
